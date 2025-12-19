@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -6,141 +7,157 @@
 
 struct FrameMetrics;
 struct SimulationConfig;
+class Renderer;
 
 class UIOverlay {
 private:
     SDL_Renderer* renderer;
+    TTF_Font* font;
+    TTF_Font* titleFont;
     
-    void drawFilledRect(int x, int y, int w, int h, SDL_Color color) {
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    void drawFilledRect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
         SDL_Rect rect = {x, y, w, h};
         SDL_RenderFillRect(renderer, &rect);
-    }
-    
-    void drawText(const std::string& text, int x, int y, SDL_Color color) {
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-        
-        // Simple pixel-based text rendering using rectangles
-        const int charWidth = 8;
-        const int charHeight = 12;
-        
-        for (size_t i = 0; i < text.length(); i++) {
-            SDL_Rect charRect = {
-                x + static_cast<int>(i) * charWidth,
-                y,
-                charWidth - 2,
-                charHeight
-            };
-            SDL_RenderDrawRect(renderer, &charRect);
-        }
-    }
-    
-    void drawInfoPanel(int x, int y, int width, int height) {
-        // Draw semi-transparent background panel
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_Color bgColor = {28, 28, 36, 220};
-        drawFilledRect(x, y, width, height, bgColor);
-        
-        // Draw border
-        SDL_SetRenderDrawColor(renderer, 80, 120, 200, 255);
-        SDL_Rect borderRect = {x, y, width, height};
-        SDL_RenderDrawRect(renderer, &borderRect);
-        
-        // Draw accent line at top
-        SDL_SetRenderDrawColor(renderer, 100, 150, 255, 255);
-        SDL_RenderDrawLine(renderer, x, y, x + width, y);
-        
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
     
+    void drawRect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+        SDL_Rect rect = {x, y, w, h};
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+    
+    int drawText(const std::string& text, int x, int y, 
+                 Uint8 r, Uint8 g, Uint8 b, TTF_Font* useFont = nullptr) {
+        if (!useFont) useFont = font;
+        if (!useFont) return 0;
+        
+        SDL_Color color = {r, g, b, 255};
+        SDL_Surface* surface = TTF_RenderText_Blended(useFont, text.c_str(), color);
+        if (!surface) return 0;
+        
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        if (!texture) {
+            SDL_FreeSurface(surface);
+            return 0;
+        }
+        
+        SDL_Rect destRect = {x, y, surface->w, surface->h};
+        SDL_RenderCopy(renderer, texture, nullptr, &destRect);
+        
+        int width = surface->w;
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
+        
+        return width;
+    }
+    
+    void drawPanel(int x, int y, int w, int h, const std::string& title) {
+        // Background
+        drawFilledRect(x, y, w, h, 25, 25, 35, 230);
+        
+        // Border
+        drawRect(x, y, w, h, 60, 100, 180, 255);
+        
+        // Title bar
+        drawFilledRect(x, y, w, 30, 35, 35, 50, 255);
+        drawRect(x, y, w, 30, 70, 110, 200, 255);
+        
+        // Title text
+        drawText(title, x + 10, y + 7, 150, 200, 255, titleFont);
+    }
+    
 public:
-    UIOverlay(SDL_Renderer* r) : renderer(r) {}
+    UIOverlay(Renderer* r) {
+        renderer = r->getSDLRenderer();
+        font = r->getFont();
+        titleFont = r->getTitleFont();
+    }
     
     void render(const FrameMetrics& metrics, const SimulationConfig& config) {
-        const int PANEL_X = 10;
-        const int PANEL_Y = 10;
-        const int PANEL_WIDTH = 280;
-        const int PANEL_HEIGHT = 240;
-        const int TEXT_X = PANEL_X + 15;
-        const int LINE_HEIGHT = 20;
+        const int PANEL_X = 15;
+        const int PANEL_Y = 15;
+        const int PANEL_W = 300;
+        const int PANEL_H = 360;
         
-        // Draw background panel
-        drawInfoPanel(PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT);
+        // Draw main stats panel
+        drawPanel(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, "PERFORMANCE METRICS");
         
-        // Prepare text lines
-        std::vector<std::string> lines;
+        int yOffset = PANEL_Y + 45;
+        const int LINE_HEIGHT = 22;
+        const int INDENT = PANEL_X + 15;
+        
+        // Mode information
         std::ostringstream oss;
-        
-        // Title
-        lines.push_back("PERFORMANCE METRICS");
-        lines.push_back("");
-        
-        // Mode
         oss << "Mode: " << getModeString(metrics.currentMode);
-        lines.push_back(oss.str());
-        oss.str("");
+        drawText(oss.str(), INDENT, yOffset, 200, 220, 240);
+        yOffset += LINE_HEIGHT;
         
         // Particle count
-        oss << "Particles: " << metrics.particleCount;
-        lines.push_back(oss.str());
         oss.str("");
+        oss << "Particles: " << metrics.particleCount;
+        drawText(oss.str(), INDENT, yOffset, 200, 220, 240);
+        yOffset += LINE_HEIGHT + 10;
         
-        lines.push_back("");
+        // Section header
+        drawText("Timing (ms)", INDENT, yOffset, 120, 180, 255);
+        yOffset += LINE_HEIGHT;
         
         // Physics time
-        oss << std::fixed << std::setprecision(2);
-        oss << "Physics:  " << metrics.physicsTime << " ms";
-        lines.push_back(oss.str());
         oss.str("");
+        oss << std::fixed << std::setprecision(3);
+        oss << "  Physics:  " << std::setw(7) << metrics.physicsTime;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT;
         
         // Render time
-        oss << "Render:   " << metrics.renderTime << " ms";
-        lines.push_back(oss.str());
         oss.str("");
+        oss << "  Render:   " << std::setw(7) << metrics.renderTime;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT;
         
         // Total time
-        oss << "Total:    " << metrics.totalTime << " ms";
-        lines.push_back(oss.str());
         oss.str("");
-        
-        lines.push_back("");
+        oss << "  Total:    " << std::setw(7) << metrics.totalTime;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT + 10;
         
         // FPS
         double fps = metrics.totalTime > 0 ? 1000.0 / metrics.totalTime : 0;
+        oss.str("");
         oss << std::setprecision(1);
         oss << "FPS: " << fps;
-        lines.push_back(oss.str());
+        drawText(oss.str(), INDENT, yOffset, 100, 255, 150);
+        yOffset += LINE_HEIGHT + 15;
+        
+        // Configuration section
+        drawText("Configuration", INDENT, yOffset, 120, 180, 255);
+        yOffset += LINE_HEIGHT;
+        
         oss.str("");
+        oss << std::fixed << std::setprecision(4);
+        oss << "  Friction:     " << config.friction;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT;
         
-        lines.push_back("");
-        
-        // Configuration parameters
+        oss.str("");
         oss << std::setprecision(3);
-        oss << "Friction:     " << config.friction;
-        lines.push_back(oss.str());
-        oss.str("");
+        oss << "  Restitution:  " << config.restitution;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT;
         
-        oss << "Restitution:  " << config.restitution;
-        lines.push_back(oss.str());
         oss.str("");
-        
         oss << std::setprecision(0);
-        oss << "Gravity:      " << config.gravityStrength;
-        lines.push_back(oss.str());
+        oss << "  Gravity:      " << config.gravityStrength;
+        drawText(oss.str(), INDENT, yOffset, 180, 200, 220);
+        yOffset += LINE_HEIGHT + 15;
         
-        // Render text lines
-        SDL_Color textColor = {220, 220, 230, 255};
-        SDL_Color titleColor = {150, 200, 255, 255};
-        
-        int currentY = PANEL_Y + 15;
-        for (size_t i = 0; i < lines.size(); i++) {
-            if (i == 0) {
-                drawText(lines[i], TEXT_X, currentY, titleColor);
-            } else if (!lines[i].empty()) {
-                drawText(lines[i], TEXT_X, currentY, textColor);
-            }
-            currentY += LINE_HEIGHT;
-        }
+        // Controls hint
+        drawText("Press keys 1-5 to switch modes", INDENT, yOffset, 140, 160, 180);
+        yOffset += LINE_HEIGHT;
+        drawText("Use +/- to adjust particles", INDENT, yOffset, 140, 160, 180);
     }
     
 private:
