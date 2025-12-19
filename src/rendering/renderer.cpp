@@ -11,10 +11,10 @@ class Renderer {
 private:
     SDL_Window* window;
     SDL_Renderer* renderer;
-    TTF_Font* font;
-    TTF_Font* titleFont;
     int width;
     int height;
+    TTF_Font* font;
+    TTF_Font* titleFont;
     
     void drawFilledCircle(int centerX, int centerY, int radius) {
         for (int w = 0; w < radius * 2; w++) {
@@ -55,7 +55,6 @@ public:
             throw std::runtime_error("Renderer creation failed");
         }
         
-        // Load fonts - try multiple paths for compatibility
         const char* fontPaths[] = {
             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
             "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
