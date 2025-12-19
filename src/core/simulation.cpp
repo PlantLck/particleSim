@@ -12,10 +12,10 @@ class CSVLogger;
 
 class Simulation {
 private:
-    Particle* particles;
     int maxParticles;
     int currentCount;
     SimulationConfig* config;
+    Particle* particles;
     SequentialPhysics* sequentialPhysics;
     Renderer* renderer;
     UIOverlay* overlay;
@@ -28,7 +28,7 @@ private:
     
 public:
     Simulation(SimulationConfig* cfg, int maxPart) 
-        : config(cfg), maxParticles(maxPart), currentCount(cfg->particleCount),
+        : maxParticles(maxPart), currentCount(cfg->particleCount), config(cfg),
           frameCount(0) {
         
         particles = new Particle[maxParticles];
