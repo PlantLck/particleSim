@@ -36,7 +36,7 @@ public:
         
         sequentialPhysics = new SequentialPhysics(maxParticles);
         renderer = new Renderer(cfg->windowWidth, cfg->windowHeight);
-        overlay = new UIOverlay(renderer->getSDLRenderer());
+        overlay = new UIOverlay(renderer);
         input = new InputHandler();
         physicsTimer = new Timer();
         renderTimer = new Timer();
