@@ -35,7 +35,6 @@ public:
                 float distSq = delta.lengthSquared();
                 
                 if (distSq > 1.0f) {
-                    float dist = std::sqrt(distSq);
                     float forceMag = sign * config.gravityStrength * particles[i].mass / distSq;
                     Vec2 forceDir = delta.normalized();
                     forces[i] += forceDir * forceMag;
