@@ -25,6 +25,12 @@ struct Vec2 {
         return *this;
     }
     
+    Vec2& operator-=(const Vec2& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+    
     float length() const {
         return std::sqrt(x * x + y * y);
     }
