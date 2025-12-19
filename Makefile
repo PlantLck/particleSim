@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -O3 -march=native -Wall
-LDFLAGS = -lSDL2 -lm
+LDFLAGS = -lSDL2 -lSDL2_ttf -lm
 
 TARGET = particle_sim
 SRC_DIR = src
